@@ -47,9 +47,12 @@ class acceptive_field_maker:
         nx.set_node_attributes(subgraph,nauty_mapping,'nauty_labeling')
         return subgraph
 
+    #The fake nodes attributes will be add when the acceptive is made
     def add_fake_nodes_back(self,subgraph):
-        #fake nodes' attributes value = 0
-        
+        order = 0
+        while len(subgraph.nodes())<self.size:
+            subgraph.add_node("f"+str(order))
+            order+=1 
         return subgraph
 
     def create_acceptive_field(self,subgraph,node):

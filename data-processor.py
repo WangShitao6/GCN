@@ -31,6 +31,12 @@ class data_process:
         return nodes_attribute
 
     def set_nodes_attribute_graph(self,graph,nodes_attribute):
+        attr_keys = graph.nodes(data=True)[0][1].keys()
+        #graph.nodes(data=True) will return a list,the elemt of list is tuple
+        #tuple[0] is node;tuple[1] is node's attr_dict
+        for node in list(graph.nodes()):
+            if "f" in node:
+                nodes_attribute[node] = {x:0 for x in attr_keys}
         nx.set_node_attributes(graph,nodes_attribute)
         return graph
 

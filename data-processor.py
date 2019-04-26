@@ -3,10 +3,11 @@ import networkx as nx
 
 class data_process:
     
-    def __init__(self,size):ls
+    def __init__(self,size,attributes_num):
         self.__data_path = "~/dataset/cora"
         self.__aceptive_field_list = list()
         self.__aceptive_field_size = size
+        self.attributes_num = attributes_num
         
     def get_graph_dataset(self):
         graph = nx.DiGraph()
@@ -32,12 +33,15 @@ class data_process:
 
     def set_nodes_attribute_graph(self,graph,nodes_attribute):
         attr_keys = graph.nodes(data=True)[0][1].keys()
+        attr_dict = dict()
         #graph.nodes(data=True) will return a list,the elemt of list is tuple
         #tuple[0] is node;tuple[1] is node's attr_dict
         for node in list(graph.nodes()):
             if "f" in node:
-                nodes_attribute[node] = {x:0 for x in attr_keys}
-        nx.set_node_attributes(graph,nodes_attribute)
+                attr_dict[node] = {x:0 for x in attr_keys}
+            else:
+                attr_dict[node] = nodes_attribute[node]
+        nx.set_node_attributes(graph,attr_dict)
         return graph
 
         

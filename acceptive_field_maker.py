@@ -43,18 +43,35 @@ class acceptive_field_maker:
         nauty_mapping_list = canonical_labeling(nauty_graph)
         #key subgraph_nodes[i] is node;value nauty_mapping_list[i] is the order in canonical_labeling
         nauty_mapping = {subgraph_nodes[i]:nauty_mapping_list[i] for i in range(len(nauty_mapping_list))}
-
         nx.set_node_attributes(subgraph,nauty_mapping,'nauty_labeling')
+
+
         return subgraph
 
     #The fake nodes attributes will be add when the acceptive is made
     def add_fake_nodes_back(self,subgraph):
-        order = 0
+        order = 1
         while len(subgraph.nodes())<self.size:
-            subgraph.add_node("f"+str(order))
-            order+=1 
+            subgraph.add_node("f"+str(order),
+                                distance_labeling = max(subgraph['distance_labeling'].values())+order,
+                                pagerank_labeling = max(subgraph['pagerank_labeling'].values())+order)
+            order+=1
         return subgraph
 
+    #subgraph is node's neighbor graph
     def create_acceptive_field(self,subgraph,node):
+        subgraph = self.distance_labeling_produce(subgraph)
+        subgraph = self.pagerank_labeling_produce(subgraph)
 
-        return subgraph
+        if len(subgraph.nodes()) < self.size:
+            self.add_fake_nodes_back(subgraph)
+        subgraph = nauty_labeling_produce(subgraph)
+        nodes_attributes = subgraph.nodes(data=True)
+        label = sorted(subgraph.nodes(),key=lambda item:(item[1]['distance_labeling'],item[1]['pagerank_labeling'],item[1]['nauty_labeling']) for item in nodes_attributes)
+        nx.set_node_attributes(subgraph,label,'label')
+
+        if len(subgraph.nodes())>self.size:
+            nodes = sorted(subgraph.nodes(),key=label.values())[0:self.size]
+            acceptive_field = subgraph.subgraph(nodes)
+            
+        return acceptive_field

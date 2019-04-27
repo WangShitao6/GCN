@@ -8,6 +8,7 @@ train = dict()
 for i in range(7):
     for j in range(10):
         train[i] = np.zeros((4,4))
+train[8]=np.array([[1,2,3,4],[1,2,3,4],[3,2,1,3],[2,3,4,5]])
 
 
 def _int64_feature(value):  
@@ -22,15 +23,15 @@ def _float_feature(value):
 def save_tfrecords(data,label,desfile):
     with tf.python_io.TFRecordWriter(desfile) as writer:
         for i in range(len(data)):
-            feature = tf.train.Feature(
-                features = {
-                    "data":_bytes_feature(value=[data.tobytes()]),
-                    "label":_int64_feature(value=[label])
+            features = tf.train.Features(
+                feature = {
+                    "data":_bytes_feature(value=data[i].astype(np.float64).tostring()),
+                    "label":_int64_feature(value=label[i])
                 }
             )
             example = tf.train.Example(features=features)
-            writer.writer(example.SerializeToString())
+            writer.write(example.SerializeToString())
 
-desfile = "./"
+desfile = "./data.tfrecords"
 
-save_tfrecords(train.values(),train.keys(),desfile)
+save_tfrecords(list(train.values()),list(train.keys()),desfile)

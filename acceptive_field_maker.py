@@ -10,10 +10,10 @@ class acceptive_field_maker:
     def assemble_neighbors(self,node):
         node_neighbors = {node}
         new_neighbors = {node}
-        while len(node_neighbors)<self.size or len(new_neighbors)!=0):
+        while len(node_neighbors)<self.size or len(new_neighbors)!=0:
             tmp = set()
             for node in new_neighbors:
-                tmp = tmp|nx.neighbors(self.graph,node)   
+                tmp = tmp|set(nx.neighbors(self.graph,node))   
                      
             new_neighbors = tmp - node_neighbors
             node_neighbors |= new_neighbors
@@ -59,19 +59,25 @@ class acceptive_field_maker:
         return subgraph
 
     #subgraph is node's neighbor graph
-    def create_acceptive_field(self,subgraph,node):
-        subgraph = self.distance_labeling_produce(subgraph)
+    def create_acceptive_field(self,node):
+        subgraph = self.assemble_neighbors(node)
+        subgraph = self.distance_labeling_produce(subgraph,node)
         subgraph = self.pagerank_labeling_produce(subgraph)
 
         if len(subgraph.nodes()) < self.size:
             self.add_fake_nodes_back(subgraph)
-        subgraph = nauty_labeling_produce(subgraph)
-        nodes_attributes = subgraph.nodes(data=True)
-        label = sorted(subgraph.nodes(),key=lambda item:(item[1]['distance_labeling'],item[1]['pagerank_labeling'],item[1]['nauty_labeling']) for item in nodes_attributes)
+
+        subgraph = self.nauty_labeling_produce(subgraph)
+        oredr_produre = sorted(subgraph.nodes(data=True),key=lambda item:(item[1]['distance_labeling'],-item[1]['pagerank_labeling'],item[1]['nauty_labeling']))
+
+        label = dict()
+        for order,item in enumerate(oredr_produre):
+            label[item[0]] = order
+
         nx.set_node_attributes(subgraph,label,'label')
 
         if len(subgraph.nodes())>self.size:
-            nodes = sorted(subgraph.nodes(),key=label.values())[0:self.size]
+            nodes = sorted(subgraph.nodes(),key=lambda item:label[item])[0:self.size]
             acceptive_field = subgraph.subgraph(nodes)
             
         return acceptive_field

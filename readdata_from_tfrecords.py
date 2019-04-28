@@ -1,12 +1,18 @@
 import tensorflow as tf
+import numpy as np
 
 def _parse_function(example):
-    features = {"data":tf.FixedLenFeature((),tf.string),
+    features = {"node":tf.FixedLenFeature((),tf.string),
+                "edge":tf.FixedLenFeature((),tf.string),
                 "label":tf.FixedLenFeature((),tf.int64)}
 
     parse_features = tf.parse_single_example(example,features)
-    data = tf.decode_raw(parse_features["data"],tf.float64)
-    return data,parse_features["label"]
+    node = tf.decode_raw(parse_features["node"],tf.float64)
+    #This can create a class member variable denote the size
+    node = tf.reshape(node,(10,1433))
+    edge = tf.decode_raw(parse_features["edge"],tf.float64)
+    edge = tf.reshape(edge,(10,10))
+    return node,edge,parse_features["label"]
 
 
 def load_tfrecords(srcfile):
@@ -22,9 +28,10 @@ def load_tfrecords(srcfile):
 
     while True:
         try:
-            data,label = sess.run(next_data)
-            print(data)
+            node,edge,label = sess.run(next_data)
+            print(node)
             #print(data.reshape((4,4)))
+            print(edge)
             print(label)
         except tf.errors.OutOfRangeError:
             break

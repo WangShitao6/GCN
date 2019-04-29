@@ -1,12 +1,15 @@
 import networkx as nx
 import tensorflow as tf
 import numpy as np
+import os
 from acceptive_field_maker import acceptive_field_maker
-from data_processor import data_process 
+import time
+
 
 class data_process:
 
     def __init__(self,
+                data_path,
                 attr_num,#the node attributes number
                 category_dict,#key:category,value:a int values and must be continuous
                 size#which size do you want to create for acceptive field
@@ -14,11 +17,12 @@ class data_process:
         self.attr_num = attr_num
         self.category = category_dict
         self.size = size
+        self.data_path = data_path
         
-    def get_graph_dataset(self,src_data_path):
+    def get_graph_dataset(self):
         graph = nx.DiGraph()
         edges = list()
-        with open(src_data_path+"cora.cites",'r') as f:
+        with open(self.data_path+"cora.cites",'r') as f:
             for line in f.readlines():
                 line = line.split()
                 edges.append((line[1],line[0]))
@@ -27,7 +31,7 @@ class data_process:
 
     def get_nodes_attributes_dataset(self):
         nodes_attribute = dict()
-        with open(src_data_path+"cora.content",'r') as f:
+        with open(self.data_path+"cora.content",'r') as f:
             for line in f.readlines():
                 line = line.split()
                 #create a nodes_attribute_dict for nx.set_node_attributes()
@@ -41,13 +45,12 @@ class data_process:
     def _bytes_feature(self,value):
         return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
     
-    def get_format_data(self,graph,node):
+    def get_format_data(self,graph,node,all_nodes_attributes):
         '''
         get the node's acceptive field
         build node,edge,lable np.array() 
         which will be saved as tfrecords
         '''
-        all_nodes_attributes = self.get_nodes_attributes_dataset()
         maker = acceptive_field_maker(graph,self.size)
         field = maker.create_acceptive_field(node)
 
@@ -57,13 +60,13 @@ class data_process:
         node_order = sorted(node_order_mapping,key = lambda Node:node_order_mapping[Node])
 
         node_tensor = list()
-        edge_tensor = np.zeros(self.size,self.size)
+        edge_tensor = np.zeros((self.size,self.size))
 
         for Node in node_order:
             if 'f' in Node:
                 node_tensor.append([0]*self.attr_num)
             else:
-                node_tensor.append([all_nodes_attrs[Node][x] for x in range(1,node_attributes_num+1)])
+                node_tensor.append([all_nodes_attributes[Node][x] for x in range(1,self.attr_num+1)])
             
         for edge in list(relabel_field.edges()):
             edge_tensor[edge[0]][edge[1]] = 1
@@ -77,36 +80,49 @@ class data_process:
 
 
     def save_tfrecords(self,desfile):
+        #start = time.time()
         try:
-            f = open(desfile,'rw')
+            print("try")
+            f = open(desfile,'w')
             f.close()
         except FileNotFoundError:
-            print("File is not found.")
-            return False
-        except PersmissionError:
+            os.mknod(desfile)
+        except PermissionError:
             print("You don't have permission to access this file.")
             return False
 
+        #end = time.time()
+        #print("try cost:",start-end)
+
         order=0
         graph = self.get_graph_dataset()
+        all_nodes_attributes = self.get_nodes_attributes_dataset()
+
+        #start = time.time()
+        #print("get graph cost:",end-start)
         with tf.python_io.TFRecordWriter(desfile) as writer:
             for Node in list(graph.nodes()):
-                node,edge,label = self.get_format_data(graph,Node)
+                #start = time.time()
+                node,edge,label = self.get_format_data(graph,Node,all_nodes_attributes)
+                #end = time.time()
+                #print("get format data cost:",start-end)
                 features = tf.train.Features(
                     feature = {
-                        "node":_bytes_feature(value=node.astype(np.float64).tostring()),
-                        "edge":_bytes_feature(value=edge.astype(np.float64).tostring()),
-                        "label":_bytes_feature(value=label.astype(np.float64).tostring())
+                        "node":self._bytes_feature(value=node.astype(np.float64).tostring()),
+                        "edge":self._bytes_feature(value=edge.astype(np.float64).tostring()),
+                        "label":self._bytes_feature(value=label.astype(np.float64).tostring())
                     }
                 )
-            example = tf.train.Example(features=features)
-            writer.write(example.SerializeToString())
-            order+=1
-            if order%200==0:
-                print('=>')
-            else:
-                pass
-        print('complete\n%s files were saved successfully in%s'%(order,desfile))
+                example = tf.train.Example(features=features)
+                writer.write(example.SerializeToString())
+                order+=1
+                #print(order)
+                #input()
+                if order%200==0:
+                    print('=>')
+                else:
+                    pass
+        print('complete\n%s files were saved successfully in %s'%(order,os.path.abspath(desfile)))
         return True
 
     def _parse_fuction(self,example):
@@ -127,7 +143,7 @@ class data_process:
         label = tf.reshape(label,(1,7))
         return data,label
 
-    def load_tfrecords(self,src_tfrecordfiles,batch)
+    def load_tfrecords(self,src_tfrecordfiles,batch):
         try:
             f = open(src_tfrecordfiles,'rw')
             f.close()

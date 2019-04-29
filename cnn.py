@@ -1,6 +1,6 @@
 import tensorflow as tf
 import os
-
+from data_processor import data_process
 #create two convolution max pooling activation function
 #parameters:
 '''
@@ -38,7 +38,7 @@ class cnn_2layers:
     def max_pool_2x2(x):
         return tf.nn.max_pool(x,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 
-    def model(data):
+    def model(data_batch,label_batch):
         # if os.path.exists("./dataset"):#read parameter from file
         #     pass
         # else:
@@ -82,4 +82,8 @@ class cnn_2layers:
         cross_entropy = tf.reduce_mean(-tf.reduce_sum(label*tf.log(prediction),reduction_indices=[1]))
         train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 
+        sess = tf.Session()
+        sess.run(tf.initialize_all_variables())
+        for in range(1000):
+            data_batch
         

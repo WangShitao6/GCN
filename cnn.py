@@ -64,8 +64,8 @@ class cnn_2layers:
 
         
         #calculate the input tensor size
-        height=(self.height-1)/4+1
-        width=(self.wdith-1)/4+1
+        height=(self.height-1)//4+1
+        width=(self.wdith-1)//4+1
 
 
         weight_fc1 = self.weight_variable([height*wdith*32],1024)

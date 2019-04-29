@@ -16,47 +16,46 @@ category_mapping = {'Neural_Networks':0,
 node_attributes_num = 1433
 
 data = data_process(data_path,node_attributes_num,category_mapping)
+
 all_nodes_attrs = data.get_nodes_attributes_dataset()
 
 graph = data.get_graph_dataset()
+
 nodes = list(graph.nodes())
+def get_node_data(graph,node):
+    #print("%s tart make field"%nodes[i])
+    #--------------------------------------------------------------
+    acceptive_maker = maker(graph,12)
+    field = acceptive_maker.create_acceptive_field(node)
+    # print("field make success")
+    # print(field.nodes())
+    #field = data.set_nodes_attributes_graph(field,all_nodes_attrs)
+    #should create node tensor and edge tensor
+    #assume two methods
+    #one:graph = nx.relabel_nodes() then create a new nx.DiGraph() and the adegs is graph.edges()
+    mapping = nx.get_node_attributes(field,'label')
+    relabel_field = nx.relabel_nodes(field,mapping)
+    mapping = sorted(mapping,key =lambda item:mapping[item])
 
-acceptive_maker = maker(graph,10)
+    node_tensor = list()
+    edge_tensor = np.zeros((acceptive_maker.size,acceptive_maker.size))
+    for Node in mapping:
+        if 'f' in Node:
+            node_tensor.append([0]*node_attributes_num)
+        else:
+            node_tensor.append([all_nodes_attrs[Node][x] for x in range(1,node_attributes_num+1)])
 
-#--------------------------------------------------------------
-field = acceptive_maker.create_acceptive_field(nodes[0])
-#field = data.set_nodes_attributes_graph(field,all_nodes_attrs)
-#should create node tensor and edge tensor
-#assume two methods
-#one:graph = nx.relabel_nodes() then create a new nx.DiGraph() and the adegs is graph.edges()
-mapping = nx.get_node_attributes(field,'label')
-relabel_field = nx.relabel_nodes(field,mapping)
-mapping = sorted(mapping,key =lambda item:mapping[item])
+    for edge in list(relabel_field.edges()):
+        edge_tensor[edge[0]][edge[1]] = 1
 
-node_tensor = list()
-edge_tensor = np.zeros((acceptive_maker.size,acceptive_maker.size))
-for node in mapping:
-    if 'f' in node:
-        node_tensor.append([0]*node_attributes_num)
-    else:
-        node_tensor.append([all_nodes_attrs[node][x] for x in range(1,node_attributes_num+1)])
+    node_tensor=np.array(node_tensor)
+    #print(a.shape)
 
-for edge in list(relabel_field.edges()):
-    edge_tensor[edge[0]][edge[1]] = 1
-
-nodes_list=list()
-edges_list = list()
-category_label = list()
-nodes_list.append(np.array(node_tensor))
-a = np.array(node_tensor)
-print(a.shape)
-edges_list.append(edge_tensor)
-category_label.append(all_nodes_attrs[nodes[0]]['category'])
+    label_tensor = np.zeros(7)
+    label_tensor[all_nodes_attrs[node]['category']]=1
+    #print(array)
+    return node_tensor,edge_tensor,label_tensor
 #--------------------------------------------------------------------------
-
-
-
-
 
 def _int64_feature(value):  
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
@@ -67,19 +66,23 @@ def _bytes_feature(value):
 def _float_feature(value):
     return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
 
-def save_tfrecords(node,edge,label,desfile):
+def save_tfrecords(graph,desfile):
+    order = 1
     with tf.python_io.TFRecordWriter(desfile) as writer:
-        for i in range(len(label)):
+        for Node in list(graph.nodes()):
+            node,edge,label = get_node_data(graph,Node)
             features = tf.train.Features(
                 feature = {
-                    "node":_bytes_feature(value=node[i].astype(np.float64).tostring()),
-                    "edge":_bytes_feature(value=edge[i].astype(np.float64).tostring()),
-                    "label":_int64_feature(value=label[i])
+                    "node":_bytes_feature(value=node.astype(np.float64).tostring()),
+                    "edge":_bytes_feature(value=edge.astype(np.float64).tostring()),
+                    "label":_bytes_feature(value=label.astype(np.float64).tostring())
                 }
             )
             example = tf.train.Example(features=features)
             writer.write(example.SerializeToString())
+            order+=1
+            print(order,":",Node," is done",end='\n')
 
 desfile = "./data.tfrecords"
 
-save_tfrecords(nodes_list,edges_list,category_label,desfile)
+save_tfrecords(graph,desfile)

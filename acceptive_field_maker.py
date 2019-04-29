@@ -10,7 +10,9 @@ class acceptive_field_maker:
     def assemble_neighbors(self,node):
         node_neighbors = {node}
         new_neighbors = {node}
-        while len(node_neighbors)<self.size or len(new_neighbors)!=0:
+        while len(node_neighbors)<self.size and len(new_neighbors)>0:
+            # print("N:",node_neighbors,end='\n')
+            # print("L:",new_neighbors)
             tmp = set()
             for node in new_neighbors:
                 tmp = tmp|set(nx.neighbors(self.graph,node))   
@@ -50,11 +52,14 @@ class acceptive_field_maker:
 
     #The fake nodes attributes will be add when the acceptive is made
     def add_fake_nodes_back(self,subgraph):
+        
+        subgraph=nx.DiGraph(subgraph)
         order = 1
         while len(subgraph.nodes())<self.size:
+            #print("add fake node:f",order)
             subgraph.add_node("f"+str(order),
-                                distance_labeling = max(subgraph['distance_labeling'].values())+order,
-                                pagerank_labeling = max(subgraph['pagerank_labeling'].values())+order)
+                                distance_labeling = len(subgraph.nodes())+order,
+                                pagerank_labeling = order+2)
             order+=1
         return subgraph
 
@@ -65,7 +70,7 @@ class acceptive_field_maker:
         subgraph = self.pagerank_labeling_produce(subgraph)
 
         if len(subgraph.nodes()) < self.size:
-            self.add_fake_nodes_back(subgraph)
+            subgraph = self.add_fake_nodes_back(subgraph)
 
         subgraph = self.nauty_labeling_produce(subgraph)
         oredr_produre = sorted(subgraph.nodes(data=True),key=lambda item:(item[1]['distance_labeling'],-item[1]['pagerank_labeling'],item[1]['nauty_labeling']))
@@ -79,5 +84,7 @@ class acceptive_field_maker:
         if len(subgraph.nodes())>self.size:
             nodes = sorted(subgraph.nodes(),key=lambda item:label[item])[0:self.size]
             acceptive_field = subgraph.subgraph(nodes)
+        else:
+            acceptive_field = subgraph
             
         return acceptive_field

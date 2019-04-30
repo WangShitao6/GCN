@@ -9,7 +9,7 @@ import time
 class data_process:
 
     def __init__(self,
-                data_path,
+                data_path,#where is the graph data
                 attr_num,#the node attributes number
                 category_dict,#key:category,value:a int values and must be continuous
                 size#which size do you want to create for acceptive field
@@ -143,7 +143,7 @@ class data_process:
         label = tf.reshape(label,(1,7))
         return data,label
 
-    def load_tfrecords(self,src_tfrecordfiles,batch):
+    def load_tfrecords(self,src_tfrecordfiles):
         try:
             f = open(src_tfrecordfiles,'rw')
             f.close()
@@ -156,6 +156,5 @@ class data_process:
 
         dataset = tf.data.TFRecordDataset(src_tfrecordfiles)
         dataset = data.map(_parse_fuction)
-        dataset = dataset.batch(batch)
 
         return dataset

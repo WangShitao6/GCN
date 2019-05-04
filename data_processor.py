@@ -9,7 +9,7 @@ import time
 class data_process:
 
     def __init__(self,
-                data_path,#where is the graph data
+                data_path,
                 attr_num,#the node attributes number
                 category_dict,#key:category,value:a int values and must be continuous
                 size#which size do you want to create for acceptive field
@@ -18,6 +18,7 @@ class data_process:
         self.category = category_dict
         self.size = size
         self.data_path = data_path
+        self.graph = self.get_graph_dataset()
         
     def get_graph_dataset(self):
         graph = nx.DiGraph()
@@ -28,6 +29,17 @@ class data_process:
                 edges.append((line[1],line[0]))
         graph.add_edges_from(edges)
         return graph
+
+    def get_node_graph(self,node):
+        neighbor_nodes = nx.neighbors(self.graph,node)
+        subgraph = self.graph.subgraph(neighbor_nodes)
+        return subgraph
+
+    def get_width(self):
+        node_number_list = list()
+        for node in list(self.graph.nodes()):
+            node_number_list.append(nx.neighbors(self.graph,node))
+        return sum(node_number_list)//len(node_number_list)
 
     def get_nodes_attributes_dataset(self):
         nodes_attribute = dict()
@@ -82,7 +94,6 @@ class data_process:
     def save_tfrecords(self,desfile):
         #start = time.time()
         try:
-            print("try")
             f = open(desfile,'w')
             f.close()
         except FileNotFoundError:
@@ -143,7 +154,7 @@ class data_process:
         label = tf.reshape(label,(1,7))
         return data,label
 
-    def load_tfrecords(self,src_tfrecordfiles):
+    def load_tfrecords(self,src_tfrecordfiles,batch):
         try:
             f = open(src_tfrecordfiles,'rw')
             f.close()
@@ -156,5 +167,6 @@ class data_process:
 
         dataset = tf.data.TFRecordDataset(src_tfrecordfiles)
         dataset = data.map(_parse_fuction)
+        dataset = dataset.batch(batch)
 
         return dataset

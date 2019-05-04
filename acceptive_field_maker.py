@@ -7,7 +7,12 @@ class acceptive_field_maker:
         self.graph = graph
         self.size = size
 
-    def assemble_neighbors(self,node):
+
+
+    def node_select(self):
+        pass
+
+    def assemble_neighbors(self,graph,node):
         node_neighbors = {node}
         new_neighbors = {node}
         while len(node_neighbors)<self.size and len(new_neighbors)>0:
@@ -15,12 +20,12 @@ class acceptive_field_maker:
             # print("L:",new_neighbors)
             tmp = set()
             for node in new_neighbors:
-                tmp = tmp|set(nx.neighbors(self.graph,node))   
+                tmp = tmp|set(nx.neighbors(graph,node)) 
                      
             new_neighbors = tmp - node_neighbors
             node_neighbors |= new_neighbors
 
-        return self.graph.subgraph(node_neighbors)
+        return graph.subgraph(node_neighbors)
 
     def distance_labeling_produce(self,subgraph,node):
         G = nx.Graph(subgraph)

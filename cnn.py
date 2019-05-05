@@ -1,5 +1,6 @@
 import tensorflow as tf
 import os
+import time
 #create two convolution max pooling activation function
 #parameters:
 '''
@@ -70,53 +71,53 @@ class cnn_2layers:
 
     def model(self,dataset,model_path,batch,epochs,height,width,channels,category):
 
-        keep_prob = tf.placeholder(tf.float64)
-        conv_prob = tf.placeholder(tf.float64)
+        #keep_prob = tf.placeholder(tf.float64)
+        #conv_prob = tf.placeholder(tf.float64)
 
         data = tf.placeholder(tf.float64,[None,height,width,channels])
         label = tf.placeholder(tf.float64,[None,category])
 
-        weight_conv1 = self.weight_variable([5,5,1,8])
-        bias_conv1 = self.bias_variable([8])
+        weight_conv1 = self.weight_variable([5,5,1,16])
+        bias_conv1 = self.bias_variable([16])
 
-        weight_conv2 = self.weight_variable([5,5,8,16])
-        bias_conv2 = self.bias_variable([16])
+        weight_conv2 = self.weight_variable([5,5,16,32])
+        bias_conv2 = self.bias_variable([32])
         
 
         #convolution layer 1
         result_conv1 = tf.nn.relu(self.conv2d(data,weight_conv1)+bias_conv1)
         result_pool1 = self.max_pool_2x2(result_conv1)
-        result_pool1 = tf.nn.dropout(result_pool1,conv_prob)
+        #result_pool1 = tf.nn.dropout(result_pool1,conv_prob)
         #convolution layer 2
         result_conv2 = self.conv2d(result_pool1,weight_conv2)+bias_conv2
         result_pool2 = self.max_pool_2x2(tf.nn.relu(result_conv2))
-        result_pool2 = tf.nn.dropout(result_pool2,conv_prob)
+        #result_pool2 = tf.nn.dropout(result_pool2,conv_prob)
         #fully connected layer
         
         #calculate the input tensor size
         height_pool2=tf.cast(result_pool2.shape[1],tf.int64)
         width_pool2 = tf.cast(result_pool2.shape[2],tf.int64)
-        print(height_pool2*width_pool2*16)
+        print(height_pool2*width_pool2*32)
 
         #input('continue')
 
-        weight_fc1 = self.weight_variable([height_pool2*width_pool2*16,100])
+        weight_fc1 = self.weight_variable([height_pool2*width_pool2*32,100])
 
         
 
         bias_fc1 = self.bias_variable([100])
         print(result_pool2.shape)
-        result_pool2_flat = tf.reshape(result_pool2,[-1,height_pool2*width_pool2*16])
+        result_pool2_flat = tf.reshape(result_pool2,[-1,height_pool2*width_pool2*32])
         #input('continue')
 
         result_fc1 = tf.nn.relu(tf.matmul(result_pool2_flat,weight_fc1)+bias_fc1)
-        result_fc1_drop  = tf.nn.dropout(result_fc1,keep_prob)
+        #result_fc1_drop  = tf.nn.dropout(result_fc1,keep_prob)
 
         weight_fc2 = self.weight_variable([100,category])
         bias_fc2 = self.bias_variable([category])
-        prediction = tf.nn.softmax(tf.matmul(result_fc1_drop,weight_fc2)+bias_fc2)
+        prediction = tf.nn.softmax(tf.matmul(result_fc1,weight_fc2)+bias_fc2)
         #loss
-        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=label,labels=prediction))
+        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=prediction,labels=label))
         train_step = tf.train.AdamOptimizer(1e-3).minimize(cross_entropy)
 
         correct_prediction = tf.equal(tf.argmax(prediction,1),tf.argmax(label,1))
@@ -127,7 +128,15 @@ class cnn_2layers:
                         weight_fc2,bias_fc2],
                         max_to_keep=1)
 
-        train = dataset.batch(batch)
+
+        
+        train = dataset.shuffle(500).batch(batch)
+        iterator = train.make_initializable_iterator()
+        train_data,train_label = iterator.get_next()
+
+        test = dataset.shuffle(500).batch(batch)
+        iterator_test = test.make_initializable_iterator()
+        test_data,test_label = iterator_test.get_next()
         
 
         with tf.Session() as sess:
@@ -140,25 +149,34 @@ class cnn_2layers:
             
             #sess.run(tf.local_variables_initializer())
             for i in range(epochs):
-                iterator = train.make_one_shot_iterator()
-                batch_data,batch_label = iterator.get_next()
+                input("pause")
                 avg_accuracy=list()
-                if i%2!=0:
-                    print("%d epochs training!"%i)
+                if i%2==0:
+                    sess.run(iterator_test.initializer)
+                    print("%d epochs testing!"%i)
                 else:
-                    print("%d epochs testing"%i)
+                    sess.run(iterator.initializer)
+                    print("%d epochs training"%i)
                 while True:
                     try:
-                        data_1,label_1 = sess.run([batch_data,batch_label])
                         #print(label_1)
                         if i%2==0:
-                            train_accuracy = accuracy.eval(feed_dict={data:data_1,label:label_1,keep_prob:1.0,conv_prob:1.0})
+                            #start = time.time()
+                            data_1,label_1 = sess.run([test_data,test_label])
+                            #end = time.time()
+                            #print("cost time :",end-start)
+                            #print(label_1)
+                            #input('pause')
+                            train_accuracy = accuracy.eval(feed_dict={data:data_1,label:label_1})
                             avg_accuracy.append(train_accuracy)
                             #print("step %d,accuracy:%g"%(i,train_accuracy))
                             #input("continue test")
                         else:
                             #input("continue train")
-                            sess.run(train_step,feed_dict={data:data_1,label:label_1,keep_prob:0.5,conv_prob:0.8})
+                            data_1,label_1 = sess.run([train_data,train_label])
+                            #print(label_1)
+                            #input('pause')
+                            sess.run(train_step,feed_dict={data:data_1,label:label_1})
                             saver.save(sess,'./model/my-model',global_step=i)
                             #print(i,end=' ')
                     except tf.errors.OutOfRangeError:
@@ -178,7 +196,7 @@ model_path = './model'
 reader = tfrecords_read(8,1433)
 dataset = reader.load_tfrecords(tfrecords_path)
 cnn = cnn_2layers()
-cnn.model(dataset,model_path,50,10,8,1433+8,1,7)
+cnn.model(dataset,model_path,50,20,8,1433+8,1,7)
 
 
 # dataset = dataset.repeat(10)

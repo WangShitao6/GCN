@@ -154,7 +154,7 @@ class data_process:
         label = tf.reshape(label,(1,7))
         return data,label
 
-    def load_tfrecords(self,src_tfrecordfiles,batch):
+    def load_tfrecords(self,src_tfrecordfiles):
         try:
             f = open(src_tfrecordfiles,'rw')
             f.close()
@@ -167,6 +167,6 @@ class data_process:
 
         dataset = tf.data.TFRecordDataset(src_tfrecordfiles)
         dataset = data.map(_parse_fuction)
-        dataset = dataset.batch(batch)
+        #dataset = dataset.batch(batch)
 
         return dataset

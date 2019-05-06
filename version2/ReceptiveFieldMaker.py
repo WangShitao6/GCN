@@ -61,6 +61,7 @@ class Maker:
 
         if len(neighbors)>self.k_size:
             N = sorted(neighbors,key=rank_r)[0:self.k_size]
+            rank_r = self.labeling_produce(N,node)#waiting
         elif len(neighbors)<self.k_size:
             N = self.add_fake_node(self.k_size-len(neighbors))#waiting
             fake_node=True

@@ -17,14 +17,14 @@ class Maker:
         self.one_hot = one_hot
         if label=='pagerank':
             self.initial_label = self.pagerank_label_produce(self.graph)#waiting
-        elif label == 'betweenness_centraily':
+        elif label == 'betweenness_centrality':
             self.initial_label = self.betweenness_label_produce(self.graph)#waiting
         else:
             pass
 
 
     def select_node_sequence(self):
-        node_sequence = self.initial_label[0:self.width]
+        node_sequence = self.initial_label[0:self.k_size]
         train_example = list()
         i = 0
         j = 0
@@ -56,9 +56,8 @@ class Maker:
         return N
 
     def normalize_graph(self,neighbors,node):
-        rank_r = self.labeling_produce(neighbors,node)#waiting
+        rank_r,_ = self.labeling_produce(neighbors,node)#waiting
         fake_node = False
-
         if len(neighbors)>self.k_size:
             N = sorted(neighbors,key=rank_r)[0:self.k_size]
             rank_r = self.labeling_produce(N,node)#waiting
@@ -67,7 +66,6 @@ class Maker:
             fake_node=True
         else:
             N = neighbors
-        
         graph_n = self.construct_subgraph(N,fake_node)#waiting
         canonical_graph = self.canonicalize(graph_n)#waiting
         return canonical_graph
@@ -80,6 +78,24 @@ class Maker:
             label_1 = nx.pagerank(subgraph,alpha=0.85)
         else:
             label_1 = nx.betweenness_centrality(subgraph)
+
+        label_2 = nx.single_source_dijkstra_path_length(subgraph,node)
+        label = sorted(neighbors,key=lambda item:(label_2[item],-label_1[item]))
+        return label
+
+    def pagerank_label_produce(self,graph):
+        label = nx.pagerank(graph)
+        label = sorted(label.keys(),key=lambda item:-label[item])
+        return label
+
+    def betweenness_label_produce(self,graph):
+        label = nx.betweenness_centrality(graph)
+        label = sorted(label.keys(),key=lambda item:-label[item])
+        return label
+
+    def add_fake_node(self,number):
+        
+
 
         
 

@@ -92,5 +92,6 @@ test = load_dataset(path,name = 'mutag',one_hot=False)
 #test = get_nodes_dict(path,'MUTAG_node_labels.txt')
 #test = get_edges_dict(path,'MUTAG_edge_labels.txt')
 #graph_indicator = get_graph_indicator(path,'MUTAG_graph_indicator.txt')
-print(test[0][1])
+for i in range(5):
+    print(test[i][0].graph.edges)
 

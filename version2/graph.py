@@ -7,6 +7,9 @@ class Graph:
         self.name = None
         self.graph = nx.Graph()
         pass
+
+    def __repr__(self):
+        return "graph name:{}\ngraph:{}".format(self.name,self.graph)
     
     def add_node(self,node):
         self.graph.add_node(node)

@@ -1,21 +1,26 @@
-from nauty.graph import Graph,canonical_labeling
+from pynauty.graph import Graph,canonical_labeling
+from collections import defaultdict
+import networkx as nx
+import numpy as np
 
 class Maker:
     
     def __init__(self,
                 graph,
-                width,#the number of choicing
+                data_process,
+                width,#the number of nodes be choiced
                 k_size,#acceptive field size
-                strides,#travrse strides
-                one_hot=False,#one_hot encode
-                fake_value=-1,#
+                strides=1,#travrse strides
                 label = 'pagerank',#sort nodes,choice 'width' number node
                 ):
-        self.graph = graph
+        self.graph = graph.graph
+        self.data_processor = data_process
+        self.graph_name = graph.name
         self.width = width
         self.k_size = k_size
         self.strides = strides
-        self.one_hot = one_hot
+        self.label = label
+
         if label=='pagerank':
             self.initial_label = self.pagerank_label_produce(self.graph)#waiting
         elif label == 'betweenness_centrality':
@@ -23,10 +28,19 @@ class Maker:
         else:
             pass
 
+    def __del__(self):
+        '''
+        将所有属性占用的内存释放
+        '''
+        pass
+    def __repr__(self):
+        return 'This is a Maker class\ngraph name:{}\ndata_process:{}\nwidth:{} kernel_size:{} strides:{}\nlabel_produce:{}\n'.format(self.graph_name,self.data_processor,self.width,self.k_size,self.strides,self.label)
+
 
     def select_node_sequence(self):
         node_sequence = self.initial_label[0:self.k_size]
-        train_list = list()
+        node_train = list()
+        edge_train = list()
         i = 0
         j = 0
         while j<self.width:
@@ -34,11 +48,14 @@ class Maker:
                 acceptive_field = self.receptive_field(node_sequence[i])
             else:
                 acceptive_field = self.zero_receptive_field()#waiting
-            train_example = self.apply_to_input_channels(acceptive_field)#waiting
-            train_list.append(acceptive_field)
+            node_data,edge_data = self.data_processor.apply_to_input_channels(acceptive_field)#waiting
+
+            node_train.append(node_data)
+            edge_train.append(edge_data)
             i+=self.strides
             j+=1
-        return train_list
+        
+        return np.array(node_train).flatten().reshape(self.width*self.k_size,-1),np.array(edge_train).flatten().reshape(self.width*self.k_size*self.k_size,-1)
 
     def zero_receptive_field(self,):
         graph = nx.Graph()
@@ -51,8 +68,6 @@ class Maker:
         norm_graph = self.normalize_graph(neighbors,node)
         return norm_graph
 
-    def apply_to_input_channels(self,)
-
 
     def neighbors_assemb(self,node):
         N = {node}
@@ -60,7 +75,7 @@ class Maker:
         while len(N)<self.k_size and len(L)>0:
             tmp = set()
             for item in L:
-                tmp = tmp|self.graph.neighbors(node)
+                tmp = tmp|set(self.graph.neighbors(node))
             L = tmp - N
             N = N|L
         return N
@@ -76,12 +91,12 @@ class Maker:
             N,coloring = self.add_fake_node(neighbors,coloring,fake_node_num)#waiting
         else:
             N = neighbors
-        graph_n = self.construct_subgraph(N,fake_node_num)#waiting
+        graph_n = self.construct_subgraph(N,coloring)#waiting
         canonical_graph = self.canonicalize(graph_n,coloring)#waiting
         return canonical_graph
-'''
-在canonical过程中可以将label的划分结果传入，然后作label。
-'''
+# '''
+# 在canonical过程中可以将label的划分结果传入，然后作label。
+# '''
     def labeling_produce(self,neighbors,node):
         coloring=list()
         level_coloring = list()
@@ -92,14 +107,15 @@ class Maker:
             init_dict = nx.betweenness_centrality(subgraph)
         level_dict = nx.single_source_dijkstra_path_length(subgraph,node)
       
-        for value in set(level_dict.value()):#set自动从小到大排序
+        for value in set(level_dict.values()):#set自动从小到大排序
             level_coloring.append({node for node in level_dict.keys() if level_dict[node]==value})
+
         for color in level_coloring:
             value_set = set()
             for node in color:
                 value_set.add(-init_dict[node])
             for value in value_set:#里面的值都是负的，也就是原本值是从大到小排序
-                coloring.append(node for node in color if init_dict[node]==-value)
+                coloring.append({node for node in color if init_dict[node]==-value})
 
         label = sorted(neighbors,key=lambda item:(level_dict[item],-init_dict[item]))
         return label,coloring
@@ -118,15 +134,20 @@ class Maker:
         fake_set = set()
         for index in range(number):
             fake_node_name = 'f'+str(index)
-            neighbors.append(fake_node_name)
+            neighbors.add(fake_node_name)
             fake_set.add(fake_node_name)
         coloring.append(fake_set)
         return neighbors,coloring
 
-    def construct_subgraph(self,N,fake_node_num):#需要改进的地方，要将所有的属性输入留在接受域构建完成后进行，在load data里面改返回的数据内容
-        subgraph = self.graph.subgraph(N[0:len(N)-fake_node_num])
-        for node in N[len(N)-fake_node_num:len(N)]:
+    def construct_subgraph(self,N,coloring):#需要改进的地方，要将所有的属性输入留在接受域构建完成后进行，在load data里面改返回的数据内容
+        #print(N)
+        # print(list(N-coloring[-1]))
+        #print(coloring)
+        subgraph = self.graph.subgraph(list(N-coloring[-1]))
+        subgraph = nx.Graph(subgraph)
+        for node in coloring[-1]:
             subgraph.add_node(node)
+        # print(subgraph.nodes)
         return subgraph
 
     def canonicalize(self,graph,coloring):
